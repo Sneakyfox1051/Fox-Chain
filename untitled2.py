@@ -32,8 +32,9 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Load the image using PIL
-image = Image.open(r"C:\Users\Lenovo\Downloads\Blockchain\Blockchain\sneakyfox_1051-removebg-preview.png")
+image_url = "https://raw.githubusercontent.com/Sneakyfox1051/Fox-Chain/main/sneakyfox_1051-removebg-preview.png"
+response = requests.get(image_url)
+image = Image.open(BytesIO(response.content))
 
 # Display the image at the topmost portion
 st.image(image, use_column_width=False, width=70)  # Adjust width as needed
