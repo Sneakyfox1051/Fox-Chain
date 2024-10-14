@@ -1,0 +1,18 @@
+{
+    "index": 8,
+    "transactions": [
+        {
+            "sender": "15jSwXiBeraf1zNVQXz3z1CdPDAxQFyQs6",
+            "receiver": "1DRbfxiRwVG2qXRFEV4g3zvsUygvck9vsA",
+            "amount": 45.0,
+            "timestamp": 1718103523.4447773,
+            "transaction_id": "b63322170570c2f85bc4598253e710d480917e2f62041230793e8a8e2cea54d9",
+            "inputs": [],
+            "outputs": []
+        }
+    ],
+    "timestamp": 1718103523.4447773,
+    "previous_hash": "0000bfc6906dfdb0178d96c32ea44e7005209ce499e460f77b36a47d611793d5",
+    "nonce": 4053,
+    "hash": "0000647d388a44145db5a66fe4977018aa425917988deae979b9271d87e5e282"
+}
