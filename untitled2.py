@@ -1,12 +1,7 @@
 import pandas as pd
 import streamlit as st
-import requests
 from PIL import Image
-<<<<<<< HEAD
 import re
-=======
-from io import BytesIO
->>>>>>> e2fd5b342ca7085b53ed5327a6ff837dff19b4dd
 
 # Load the CSV file into a DataFrame
 df = pd.read_csv('combined_block.csv', delimiter=',', encoding='utf-8')
@@ -37,12 +32,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# URL of the image hosted on GitHub
-image_url = "https://raw.githubusercontent.com/Sneakyfox1051/Fox-Chain/main/sneakyfox_1051-removebg-preview.png"
-
-# Fetch the image
-response = requests.get(image_url)
-image = Image.open(BytesIO(response.content))
+# Load the image using PIL
+image = Image.open(r"C:\Users\Lenovo\Downloads\Blockchain\Blockchain\sneakyfox_1051-removebg-preview.png")
 
 # Display the image at the topmost portion
 st.image(image, use_column_width=False, width=70)  # Adjust width as needed
