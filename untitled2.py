@@ -1,6 +1,8 @@
 import pandas as pd
 import streamlit as st
+import requests
 from PIL import Image
+from io import BytesIO
 
 # Load the CSV file into a DataFrame
 df = pd.read_csv('combined_block.csv', delimiter=',', encoding='utf-8')
@@ -31,8 +33,12 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Load the image using PIL
-image = Image.open("https://github.com/Sneakyfox1051/Fox-Chain/blob/main/sneakyfox_1051-removebg-preview.png?raw=true")
+# URL of the image hosted on GitHub
+image_url = "https://raw.githubusercontent.com/Sneakyfox1051/Fox-Chain/main/sneakyfox_1051-removebg-preview.png"
+
+# Fetch the image
+response = requests.get(image_url)
+image = Image.open(BytesIO(response.content))
 
 # Display the image at the topmost portion
 st.image(image, use_column_width=False, width=70)  # Adjust width as needed
