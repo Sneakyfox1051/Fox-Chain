@@ -1,8 +1,8 @@
 import pandas as pd
 import streamlit as st
 from PIL import Image
-import re
-
+import requests
+from io import BytesIO
 # Load the CSV file into a DataFrame
 df = pd.read_csv('combined_block.csv', delimiter=',', encoding='utf-8')
 
@@ -32,6 +32,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# Load the image from the raw URL
 image_url = "https://raw.githubusercontent.com/Sneakyfox1051/Fox-Chain/main/sneakyfox_1051-removebg-preview.png"
 response = requests.get(image_url)
 image = Image.open(BytesIO(response.content))
