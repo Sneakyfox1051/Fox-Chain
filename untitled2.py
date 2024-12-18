@@ -38,7 +38,7 @@ response = requests.get(image_url)
 image = Image.open(BytesIO(response.content))
 
 # Display the image at the topmost portion
-st.image(image, use_column_width=False, width=70)  # Adjust width as needed
+st.image(image, use_container_width=False, width=70)  # Adjust width as needed
 
 # Main title and description
 st.title('Fox Chain - Blockchain Data Explorer')
