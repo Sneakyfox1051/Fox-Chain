@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions - Chain Explorer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .filter-label {
+        font-weight: 600;
+        color: #333;
+        font-size: 0.9rem;
+    }
+
+    .filter-input {
+        padding: 10px 15px;
+        border: 2px solid #e1e5e9;
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+    }
+
+    .filter-input:focus {
+        outline: none;
+        border-color: #667eea;
+    }
+
+    .transactions-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .transactions-table th,
+    .transactions-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid #e1e5e9;
+    }
+
+    .transactions-table th {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+    }
+
+    .transactions-table tr:hover {
+        background: #f8f9fa;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 30px;
+    }
+
+    .pagination button {
+        padding: 10px 15px;
+        border: 1px solid #e1e5e9;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 500;
+    }
+
+    .pagination button:hover {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .pagination button.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+    }
+
+    .pagination button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .transaction-details {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 10px;
+        font-family: monospace;
+        font-size: 0.9rem;
+    }
+
+    .address {
+        font-family: monospace;
+        background: #e9ecef;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+    }
+
+    .amount {
+        font-weight: 600;
+        color: #28a745;
+    }
+
+    .block-number {
+        font-weight: 600;
+        color: #667eea;
+    }
+
+    .stats-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .stats-info {
+        display: flex;
+        gap: 30px;
+        align-items: center;
+    }
+
+    .stat-item {
+        text-align: center;
+    }
+
+    .stat-value {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #333;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    @media (max-width: 768px) {
+        .filters {
+            grid-template-columns: 1fr;
+        }
+        
+        .stats-bar {
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .stats-info {
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .transactions-table {
+            font-size: 0.8rem;
+        }
+        
+        .transactions-table th,
+        .transactions-table td {
+            padding: 10px 8px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <i class="fas fa-exchange-alt"></i> Transactions
+</div>
+<div class="page-subtitle">
+    Browse and analyze blockchain transactions
+</div>
+
+<!-- Stats Bar -->
+<div class="stats-bar">
+    <div class="stats-info">
+        <div class="stat-item">
+            <div class="stat-value" id="totalTransactions">-</div>
+            <div class="stat-label">Total Transactions</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="filteredTransactions">-</div>
+            <div class="stat-label">Filtered Results</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="totalPages">-</div>
+            <div class="stat-label">Total Pages</div>
+        </div>
+    </div>
+    <div>
+        <button class="btn" onclick="exportTransactions()">
+            <i class="fas fa-download"></i> Export
+        </button>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card">
+    <h3 style="margin-bottom: 20px;">Filters</h3>
+    <div class="filters">
+        <div class="filter-group">
+            <label class="filter-label">Block Number</label>
+            <input type="number" class="filter-input" id="blockFilter" placeholder="Filter by block number">
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">Sender Address</label>
+            <input type="text" class="filter-input" id="senderFilter" placeholder="Filter by sender">
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">Receiver Address</label>
+            <input type="text" class="filter-input" id="receiverFilter" placeholder="Filter by receiver">
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">Min Amount</label>
+            <input type="number" class="filter-input" id="minAmountFilter" placeholder="Minimum amount">
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">Max Amount</label>
+            <input type="number" class="filter-input" id="maxAmountFilter" placeholder="Maximum amount">
+        </div>
+        <div class="filter-group">
+            <label class="filter-label">Results per Page</label>
+            <select class="filter-input" id="perPageFilter">
+                <option value="10">10 per page</option>
+                <option value="25">25 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+            </select>
+        </div>
+    </div>
+    <div style="margin-top: 20px; text-align: center;">
+        <button class="btn" onclick="applyFilters()">
+            <i class="fas fa-filter"></i> Apply Filters
+        </button>
+        <button class="btn btn-secondary" onclick="clearFilters()" style="margin-left: 10px;">
+            <i class="fas fa-times"></i> Clear
+        </button>
+    </div>
+</div>
+
+<!-- Transactions Table -->
+<div class="card">
+    <div class="loading" id="transactionsLoading">
+        <div class="spinner"></div>
+        <div>Loading transactions...</div>
+    </div>
+    <div id="transactionsContainer" style="display: none;">
+        <table class="transactions-table" id="transactionsTable">
+            <thead>
+                <tr>
+                    <th>Block</th>
+                    <th>Sender</th>
+                    <th>Receiver</th>
+                    <th>Amount</th>
+                    <th>Timestamp</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="transactionsBody">
+            </tbody>
+        </table>
+        <div class="pagination" id="pagination">
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentPage = 1;
+    let perPage = 10;
+    let currentFilters = {};
+
+    // Load initial data
+    document.addEventListener('DOMContentLoaded', function() {
+        loadStats();
+        loadTransactions();
+        setupEventListeners();
+    });
+
+    function setupEventListeners() {
+        // Filter inputs
+        document.getElementById('perPageFilter').addEventListener('change', function() {
+            perPage = parseInt(this.value);
+            currentPage = 1;
+            loadTransactions();
+        });
+
+        // Enter key on filter inputs
+        ['blockFilter', 'senderFilter', 'receiverFilter', 'minAmountFilter', 'maxAmountFilter'].forEach(id => {
+            document.getElementById(id).addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    applyFilters();
+                }
+            });
+        });
+    }
+
+    // Load statistics
+    async function loadStats() {
+        try {
+            const response = await fetch('/api/stats');
+            const data = await response.json();
+            document.getElementById('totalTransactions').textContent = data.total_transactions.toLocaleString();
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    }
+
+    // Load transactions
+    async function loadTransactions(page = 1) {
+        const loading = document.getElementById('transactionsLoading');
+        const container = document.getElementById('transactionsContainer');
+        
+        loading.style.display = 'block';
+        container.style.display = 'none';
+        
+        try {
+            const params = new URLSearchParams({
+                page: page,
+                per_page: perPage,
+                ...currentFilters
+            });
+            
+            const response = await fetch(`/api/transactions?${params}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            displayTransactions(data.transactions);
+            updatePagination(data.page, data.total_pages, data.total);
+            
+            loading.style.display = 'none';
+            container.style.display = 'block';
+            
+        } catch (error) {
+            console.error('Error loading transactions:', error);
+            loading.style.display = 'none';
+            container.innerHTML = `<div class="alert alert-error">Error loading transactions: ${error.message}</div>`;
+        }
+    }
+
+    // Display transactions
+    function displayTransactions(transactions) {
+        const tbody = document.getElementById('transactionsBody');
+        tbody.innerHTML = '';
+        
+        transactions.forEach(transaction => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td><span class="block-number">${transaction.index}</span></td>
+                <td><span class="address">${transaction.sender.substring(0, 12)}...</span></td>
+                <td><span class="address">${transaction.receiver.substring(0, 12)}...</span></td>
+                <td><span class="amount">$${parseFloat(transaction.amount).toLocaleString()}</span></td>
+                <td>${new Date(transaction.transaction_timestamp).toLocaleString()}</td>
+                <td>
+                    <button class="btn" onclick="showTransactionDetails('${transaction.transaction_id}')" style="padding: 5px 10px; font-size: 0.8rem;">
+                        <i class="fas fa-eye"></i> Details
+                    </button>
+                </td>
+            `;
+        });
+    }
+
+    // Update pagination
+    function updatePagination(currentPage, totalPages, total) {
+        const pagination = document.getElementById('pagination');
+        const filteredCount = document.getElementById('filteredTransactions');
+        const totalPagesEl = document.getElementById('totalPages');
+        
+        pagination.innerHTML = '';
+        filteredCount.textContent = total.toLocaleString();
+        totalPagesEl.textContent = totalPages;
+        
+        // Previous button
+        const prevBtn = document.createElement('button');
+        prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.onclick = () => loadTransactions(currentPage - 1);
+        pagination.appendChild(prevBtn);
+        
+        // Page numbers
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, currentPage + 2);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const button = document.createElement('button');
+            button.textContent = i;
+            if (i === currentPage) {
+                button.classList.add('active');
+            }
+            button.onclick = () => loadTransactions(i);
+            pagination.appendChild(button);
+        }
+        
+        // Next button
+        const nextBtn = document.createElement('button');
+        nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.onclick = () => loadTransactions(currentPage + 1);
+        pagination.appendChild(nextBtn);
+    }
+
+    // Apply filters
+    function applyFilters() {
+        currentFilters = {
+            block: document.getElementById('blockFilter').value,
+            sender: document.getElementById('senderFilter').value,
+            receiver: document.getElementById('receiverFilter').value,
+            min_amount: document.getElementById('minAmountFilter').value,
+            max_amount: document.getElementById('maxAmountFilter').value
+        };
+        
+        // Remove empty filters
+        Object.keys(currentFilters).forEach(key => {
+            if (!currentFilters[key]) {
+                delete currentFilters[key];
+            }
+        });
+        
+        currentPage = 1;
+        loadTransactions();
+    }
+
+    // Clear filters
+    function clearFilters() {
+        document.getElementById('blockFilter').value = '';
+        document.getElementById('senderFilter').value = '';
+        document.getElementById('receiverFilter').value = '';
+        document.getElementById('minAmountFilter').value = '';
+        document.getElementById('maxAmountFilter').value = '';
+        
+        currentFilters = {};
+        currentPage = 1;
+        loadTransactions();
+    }
+
+    // Show transaction details
+    function showTransactionDetails(transactionId) {
+        // This would typically open a modal or navigate to a details page
+        alert(`Transaction Details for: ${transactionId}\n\nThis would show detailed information about the transaction.`);
+    }
+
+    // Export transactions
+    function exportTransactions() {
+        // This would typically generate a CSV or JSON export
+        alert('Export functionality would be implemented here to download transaction data.');
+    }
+</script>
+{% endblock %}

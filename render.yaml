@@ -1,0 +1,27 @@
+# Render deployment configuration
+# This file makes deployment easier on Render - it auto-configures your service
+
+services:
+  - type: web
+    name: chain-explorer
+    env: python
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT wsgi:app --timeout 120 --workers 2 --threads 4
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATA_FILE
+        value: combined_block.csv
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        fromService:
+          type: web
+          name: chain-explorer
+          property: port
+

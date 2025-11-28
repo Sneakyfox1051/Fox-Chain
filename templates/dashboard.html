@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Chain Explorer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+    }
+
+    .stat-icon {
+        font-size: 2.5rem;
+        margin-bottom: 15px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .stat-label {
+        font-size: 1rem;
+        color: #666;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+
+    .chart-container {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .chart-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #333;
+        text-align: center;
+    }
+
+    .full-width-chart {
+        grid-column: 1 / -1;
+    }
+
+    @media (max-width: 768px) {
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <i class="fas fa-tachometer-alt"></i> Dashboard
+</div>
+<div class="page-subtitle">
+    Real-time blockchain metrics and analytics
+</div>
+
+<!-- Key Metrics -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-cubes"></i></div>
+        <div class="stat-value" id="totalBlocks">-</div>
+        <div class="stat-label">Total Blocks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-exchange-alt"></i></div>
+        <div class="stat-value" id="totalTransactions">-</div>
+        <div class="stat-label">Total Transactions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-user"></i></div>
+        <div class="stat-value" id="uniqueSenders">-</div>
+        <div class="stat-label">Unique Senders</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
+        <div class="stat-value" id="totalVolume">-</div>
+        <div class="stat-label">Total Volume</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-users"></i></div>
+        <div class="stat-value" id="uniqueReceivers">-</div>
+        <div class="stat-label">Unique Receivers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+        <div class="stat-value" id="avgTransaction">-</div>
+        <div class="stat-label">Avg Transaction</div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="charts-grid">
+    <div class="chart-container">
+        <div class="chart-title">Transaction Volume Over Time</div>
+        <canvas id="volumeChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <div class="chart-title">Top Senders by Volume</div>
+        <canvas id="sendersChart"></canvas>
+    </div>
+</div>
+
+<div class="charts-grid">
+    <div class="chart-container">
+        <div class="chart-title">Block Distribution</div>
+        <canvas id="blockChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <div class="chart-title">Transaction Size Distribution</div>
+        <canvas id="sizeChart"></canvas>
+    </div>
+</div>
+
+<!-- Network Overview -->
+<div class="chart-container full-width-chart">
+    <div class="chart-title">Network Activity Timeline</div>
+    <canvas id="timelineChart"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load dashboard data
+    document.addEventListener('DOMContentLoaded', function() {
+        loadStats();
+        loadVolumeChart();
+        loadSendersChart();
+        loadBlockChart();
+        loadSizeChart();
+        loadTimelineChart();
+    });
+
+    // Load statistics
+    async function loadStats() {
+        try {
+            const response = await fetch('/api/stats');
+            const data = await response.json();
+            
+            document.getElementById('totalBlocks').textContent = data.total_blocks.toLocaleString();
+            document.getElementById('totalTransactions').textContent = data.total_transactions.toLocaleString();
+            document.getElementById('uniqueSenders').textContent = data.unique_senders.toLocaleString();
+            document.getElementById('totalVolume').textContent = '$' + data.total_volume.toLocaleString();
+            document.getElementById('uniqueReceivers').textContent = data.unique_receivers.toLocaleString();
+            document.getElementById('avgTransaction').textContent = '$' + data.average_transaction.toLocaleString();
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    }
+
+    // Load volume chart
+    async function loadVolumeChart() {
+        try {
+            const response = await fetch('/api/analytics/volume-over-time');
+            const data = await response.json();
+            
+            const ctx = document.getElementById('volumeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        label: 'Transaction Volume',
+                        data: data.volumes,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading volume chart:', error);
+        }
+    }
+
+    // Load senders chart
+    async function loadSendersChart() {
+        try {
+            const response = await fetch('/api/analytics/top-senders');
+            const data = await response.json();
+            
+            const ctx = document.getElementById('sendersChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.senders.map(sender => sender.substring(0, 8) + '...'),
+                    datasets: [{
+                        data: data.amounts,
+                        backgroundColor: [
+                            '#667eea',
+                            '#764ba2',
+                            '#f093fb',
+                            '#f5576c',
+                            '#4facfe',
+                            '#00f2fe',
+                            '#43e97b',
+                            '#38f9d7'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading senders chart:', error);
+        }
+    }
+
+    // Load block chart
+    async function loadBlockChart() {
+        try {
+            const response = await fetch('/api/analytics/block-distribution');
+            const data = await response.json();
+            
+            const ctx = document.getElementById('blockChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.blocks.map(block => `Block ${block}`),
+                    datasets: [{
+                        label: 'Transaction Count',
+                        data: data.transaction_counts,
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: '#667eea',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading block chart:', error);
+        }
+    }
+
+    // Load size chart
+    async function loadSizeChart() {
+        try {
+            const response = await fetch('/api/transactions?per_page=1000');
+            const data = await response.json();
+            
+            const amounts = data.transactions.map(t => parseFloat(t.amount));
+            const bins = [0, 100, 500, 1000, 5000, 10000, 50000, 100000, Infinity];
+            const binLabels = ['0-100', '100-500', '500-1K', '1K-5K', '5K-10K', '10K-50K', '50K-100K', '100K+'];
+            const binCounts = new Array(bins.length - 1).fill(0);
+            
+            amounts.forEach(amount => {
+                for (let i = 0; i < bins.length - 1; i++) {
+                    if (amount >= bins[i] && amount < bins[i + 1]) {
+                        binCounts[i]++;
+                        break;
+                    }
+                }
+            });
+            
+            const ctx = document.getElementById('sizeChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: binLabels,
+                    datasets: [{
+                        data: binCounts,
+                        backgroundColor: [
+                            '#667eea',
+                            '#764ba2',
+                            '#f093fb',
+                            '#f5576c',
+                            '#4facfe',
+                            '#00f2fe',
+                            '#43e97b',
+                            '#38f9d7'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading size chart:', error);
+        }
+    }
+
+    // Load timeline chart
+    async function loadTimelineChart() {
+        try {
+            const response = await fetch('/api/analytics/transaction-timeline');
+            const data = await response.json();
+            
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.hours.map(h => h + ':00'),
+                    datasets: [{
+                        label: 'Transactions per Hour',
+                        data: data.counts,
+                        borderColor: '#f093fb',
+                        backgroundColor: 'rgba(240, 147, 251, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading timeline chart:', error);
+        }
+    }
+</script>
+{% endblock %}

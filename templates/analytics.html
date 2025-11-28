@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Chain Explorer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analytics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-bottom: 30px;
+    }
+
+    .chart-container {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .chart-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #333;
+        text-align: center;
+    }
+
+    .full-width-chart {
+        grid-column: 1 / -1;
+    }
+
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .metric-card {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        transition: transform 0.3s ease;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .metric-label {
+        font-size: 0.9rem;
+        color: #666;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .heatmap-container {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+    }
+
+    .heatmap {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+        margin-top: 20px;
+    }
+
+    .heatmap-cell {
+        aspect-ratio: 1;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+        color: white;
+        font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+        .analytics-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Key Metrics -->
+<div class="metrics-grid" id="metricsGrid">
+    <div class="metric-card">
+        <div class="metric-value" id="avgTransactionSize">-</div>
+        <div class="metric-label">Avg Transaction Size</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="maxTransactionSize">-</div>
+        <div class="metric-label">Max Transaction Size</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="minTransactionSize">-</div>
+        <div class="metric-label">Min Transaction Size</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-value" id="uniqueReceivers">-</div>
+        <div class="metric-label">Unique Receivers</div>
+    </div>
+</div>
+
+<!-- Analytics Charts -->
+<div class="analytics-grid">
+    <div class="chart-container">
+        <div class="chart-title">Transaction Distribution by Block</div>
+        <canvas id="blockDistributionChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <div class="chart-title">Top Receivers by Volume</div>
+        <canvas id="receiversChart"></canvas>
+    </div>
+</div>
+
+<div class="analytics-grid">
+    <div class="chart-container">
+        <div class="chart-title">Transaction Size Distribution</div>
+        <canvas id="sizeDistributionChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <div class="chart-title">Daily Transaction Count</div>
+        <canvas id="dailyCountChart"></canvas>
+    </div>
+</div>
+
+<!-- Heatmap -->
+<div class="heatmap-container">
+    <div class="chart-title">Transaction Activity Heatmap</div>
+    <div class="loading" id="heatmapLoading">
+        <div class="spinner"></div>
+        <div>Loading activity data...</div>
+    </div>
+    <div class="heatmap" id="activityHeatmap" style="display: none;">
+    </div>
+</div>
+
+<!-- Network Analysis -->
+<div class="chart-container full-width-chart">
+    <div class="chart-title">Network Flow Analysis</div>
+    <canvas id="networkChart"></canvas>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load all analytics data
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAdvancedMetrics();
+        loadBlockDistributionChart();
+        loadReceiversChart();
+        loadSizeDistributionChart();
+        loadDailyCountChart();
+        loadActivityHeatmap();
+        loadNetworkChart();
+    });
+
+    // Load advanced metrics
+    async function loadAdvancedMetrics() {
+        try {
+            const response = await fetch('/api/stats');
+            const data = await response.json();
+            
+            document.getElementById('avgTransactionSize').textContent = '$' + data.average_transaction.toLocaleString();
+            document.getElementById('maxTransactionSize').textContent = '$' + data.max_transaction.toLocaleString();
+            document.getElementById('minTransactionSize').textContent = '$' + data.min_transaction.toLocaleString();
+            document.getElementById('uniqueReceivers').textContent = data.unique_receivers.toLocaleString();
+        } catch (error) {
+            console.error('Error loading advanced metrics:', error);
+        }
+    }
+
+    // Load block distribution chart
+    async function loadBlockDistributionChart() {
+        try {
+            const response = await fetch('/api/analytics/block-distribution');
+            const data = await response.json();
+            
+            const ctx = document.getElementById('blockDistributionChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.blocks.map(block => `Block ${block}`),
+                    datasets: [{
+                        label: 'Transaction Count',
+                        data: data.transaction_counts,
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: '#667eea',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading block distribution chart:', error);
+        }
+    }
+
+    // Load receivers chart
+    async function loadReceiversChart() {
+        try {
+            const response = await fetch('/api/analytics/top-receivers');
+            const data = await response.json();
+            
+            const ctx = document.getElementById('receiversChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.receivers.map(receiver => receiver.substring(0, 8) + '...'),
+                    datasets: [{
+                        label: 'Volume Received',
+                        data: data.amounts,
+                        backgroundColor: 'rgba(118, 75, 162, 0.8)',
+                        borderColor: '#764ba2',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading receivers chart:', error);
+        }
+    }
+
+    // Load size distribution chart
+    async function loadSizeDistributionChart() {
+        try {
+            const response = await fetch('/api/transactions?per_page=1000');
+            const data = await response.json();
+            
+            const amounts = data.transactions.map(t => parseFloat(t.amount));
+            const bins = [0, 100, 500, 1000, 5000, 10000, 50000, 100000, Infinity];
+            const binLabels = ['0-100', '100-500', '500-1K', '1K-5K', '5K-10K', '10K-50K', '50K-100K', '100K+'];
+            const binCounts = new Array(bins.length - 1).fill(0);
+            
+            amounts.forEach(amount => {
+                for (let i = 0; i < bins.length - 1; i++) {
+                    if (amount >= bins[i] && amount < bins[i + 1]) {
+                        binCounts[i]++;
+                        break;
+                    }
+                }
+            });
+            
+            const ctx = document.getElementById('sizeDistributionChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: binLabels,
+                    datasets: [{
+                        data: binCounts,
+                        backgroundColor: [
+                            '#667eea',
+                            '#764ba2',
+                            '#f093fb',
+                            '#f5576c',
+                            '#4facfe',
+                            '#00f2fe',
+                            '#43e97b',
+                            '#38f9d7'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading size distribution chart:', error);
+        }
+    }
+
+    // Load daily count chart
+    async function loadDailyCountChart() {
+        try {
+            const response = await fetch('/api/transactions?per_page=1000');
+            const data = await response.json();
+            
+            // Group by date
+            const dailyCounts = {};
+            data.transactions.forEach(transaction => {
+                const date = new Date(transaction.transaction_timestamp).toISOString().split('T')[0];
+                dailyCounts[date] = (dailyCounts[date] || 0) + 1;
+            });
+            
+            const sortedDates = Object.keys(dailyCounts).sort();
+            const counts = sortedDates.map(date => dailyCounts[date]);
+            
+            const ctx = document.getElementById('dailyCountChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sortedDates,
+                    datasets: [{
+                        label: 'Daily Transaction Count',
+                        data: counts,
+                        borderColor: '#f093fb',
+                        backgroundColor: 'rgba(240, 147, 251, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading daily count chart:', error);
+        }
+    }
+
+    // Load activity heatmap
+    async function loadActivityHeatmap() {
+        try {
+            const response = await fetch('/api/transactions?per_page=1000');
+            const data = await response.json();
+            
+            // Create a simple 7x7 heatmap based on transaction activity
+            const heatmap = document.getElementById('activityHeatmap');
+            const loading = document.getElementById('heatmapLoading');
+            
+            // Generate mock heatmap data (in a real app, you'd analyze actual time patterns)
+            const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const hours = Array.from({length: 7}, (_, i) => i * 3 + 6); // 6, 9, 12, 15, 18, 21, 24
+            
+            heatmap.innerHTML = '';
+            
+            // Add day labels
+            days.forEach(day => {
+                const cell = document.createElement('div');
+                cell.textContent = day;
+                cell.style.gridColumn = '1';
+                cell.style.fontWeight = '600';
+                cell.style.color = '#666';
+                heatmap.appendChild(cell);
+            });
+            
+            // Add hour labels
+            hours.forEach(hour => {
+                const cell = document.createElement('div');
+                cell.textContent = hour + ':00';
+                cell.style.fontWeight = '600';
+                cell.style.color = '#666';
+                heatmap.appendChild(cell);
+            });
+            
+            // Add activity cells
+            for (let i = 0; i < 7; i++) {
+                for (let j = 0; j < 7; j++) {
+                    const cell = document.createElement('div');
+                    const activity = Math.random() * 100;
+                    const intensity = Math.floor(activity / 20);
+                    cell.className = 'heatmap-cell';
+                    cell.style.backgroundColor = `rgba(102, 126, 234, ${0.2 + intensity * 0.1})`;
+                    cell.textContent = Math.floor(activity);
+                    heatmap.appendChild(cell);
+                }
+            }
+            
+            loading.style.display = 'none';
+            heatmap.style.display = 'grid';
+            
+        } catch (error) {
+            console.error('Error loading activity heatmap:', error);
+        }
+    }
+
+    // Load network chart
+    async function loadNetworkChart() {
+        try {
+            const response = await fetch('/api/transactions?per_page=100');
+            const data = await response.json();
+            
+            // Create a simple network visualization
+            const ctx = document.getElementById('networkChart').getContext('2d');
+            
+            // Sample data for network visualization
+            const networkData = {
+                labels: ['Sender A', 'Sender B', 'Sender C', 'Receiver X', 'Receiver Y', 'Receiver Z'],
+                datasets: [{
+                    label: 'Transaction Flow',
+                    data: [
+                        {x: 1, y: 4, r: 20},
+                        {x: 2, y: 3, r: 15},
+                        {x: 3, y: 2, r: 25},
+                        {x: 4, y: 1, r: 18},
+                        {x: 5, y: 2, r: 22},
+                        {x: 6, y: 3, r: 16}
+                    ],
+                    backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                    borderColor: '#667eea',
+                    borderWidth: 2
+                }]
+            };
+            
+            new Chart(ctx, {
+                type: 'scatter',
+                data: networkData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Node Position X'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Node Position Y'
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Error loading network chart:', error);
+        }
+    }
+</script>
+{% endblock %}
+j

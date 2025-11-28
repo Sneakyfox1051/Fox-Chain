@@ -1,0 +1,473 @@
+{% extends "base.html" %}
+
+{% block title %}Query - Chain Explorer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .query-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .query-input-container {
+        position: relative;
+        margin-bottom: 30px;
+    }
+
+    .query-input {
+        width: 100%;
+        padding: 20px 60px 20px 20px;
+        border: 2px solid #e1e5e9;
+        border-radius: 15px;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        background: rgba(255, 255, 255, 0.9);
+    }
+
+    .query-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .query-submit {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 12px 20px;
+        cursor: pointer;
+        transition: transform 0.3s ease;
+    }
+
+    .query-submit:hover {
+        transform: translateY(-50%) translateY(-2px);
+    }
+
+    .suggestions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .suggestion-card {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 10px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+
+    .suggestion-card:hover {
+        transform: translateY(-2px);
+        border-color: #667eea;
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+    }
+
+    .suggestion-title {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+
+    .suggestion-desc {
+        font-size: 0.9rem;
+        color: #666;
+    }
+
+    .response-container {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 15px;
+        padding: 25px;
+        margin-top: 20px;
+        min-height: 200px;
+        display: none;
+    }
+
+    .response-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e1e5e9;
+    }
+
+    .response-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .response-type {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .response-content {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #333;
+    }
+
+    .response-data {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 15px;
+        font-family: monospace;
+        font-size: 0.9rem;
+        overflow-x: auto;
+    }
+
+    .response-suggestions {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e1e5e9;
+    }
+
+    .suggestion-tag {
+        display: inline-block;
+        background: rgba(102, 126, 234, 0.1);
+        color: #667eea;
+        padding: 5px 12px;
+        border-radius: 15px;
+        margin: 5px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+    }
+
+    .suggestion-tag:hover {
+        background: #667eea;
+        color: white;
+    }
+
+    .concept-explanation {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border-radius: 10px;
+        padding: 20px;
+        margin: 15px 0;
+    }
+
+    .concept-attributes {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .attribute-tag {
+        background: rgba(102, 126, 234, 0.2);
+        color: #333;
+        padding: 8px 12px;
+        border-radius: 8px;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    .examples-section {
+        margin-top: 20px;
+    }
+
+    .example-item {
+        background: #f8f9fa;
+        padding: 10px 15px;
+        border-radius: 8px;
+        margin: 5px 0;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border-left: 4px solid #667eea;
+    }
+
+    .example-item:hover {
+        background: #e9ecef;
+        transform: translateX(5px);
+    }
+
+    .loading {
+        text-align: center;
+        padding: 40px;
+    }
+
+    .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .error-message {
+        background: rgba(220, 53, 69, 0.1);
+        border: 1px solid rgba(220, 53, 69, 0.3);
+        color: #721c24;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 15px 0;
+    }
+
+    .success-message {
+        background: rgba(40, 167, 69, 0.1);
+        border: 1px solid rgba(40, 167, 69, 0.3);
+        color: #155724;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 15px 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="query-container">
+    <div class="page-title">
+        <i class="fas fa-search"></i> Smart Query
+    </div>
+    <div class="page-subtitle">
+        Ask questions about your blockchain data using natural language
+    </div>
+
+    <!-- Query Input -->
+    <div class="query-input-container">
+        <input type="text" class="query-input" id="queryInput" placeholder="Ask anything about your blockchain data... (e.g., 'What is in block 5?', 'Who is the sender of block 2?', 'Explain what a hash is')">
+        <button class="query-submit" onclick="processQuery()">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+
+    <!-- Query Suggestions -->
+    <div class="suggestions" id="suggestions">
+        <div class="suggestion-card" onclick="setQuery('What is in block 1?')">
+            <div class="suggestion-title">Block Information</div>
+            <div class="suggestion-desc">Get details about specific blocks</div>
+        </div>
+        <div class="suggestion-card" onclick="setQuery('Who is the sender of block 2?')">
+            <div class="suggestion-title">Transaction Details</div>
+            <div class="suggestion-desc">Find senders, receivers, and amounts</div>
+        </div>
+        <div class="suggestion-card" onclick="setQuery('Explain what a hash is')">
+            <div class="suggestion-title">Blockchain Concepts</div>
+            <div class="suggestion-desc">Learn about blockchain terminology</div>
+        </div>
+        <div class="suggestion-card" onclick="setQuery('Show me recent transactions')">
+            <div class="suggestion-title">Data Exploration</div>
+            <div class="suggestion-desc">Browse and explore your data</div>
+        </div>
+    </div>
+
+    <!-- Response Container -->
+    <div class="response-container" id="responseContainer">
+        <div class="response-header">
+            <div class="response-title" id="responseTitle">Response</div>
+            <div class="response-type" id="responseType">Query</div>
+        </div>
+        <div class="response-content" id="responseContent">
+            <!-- Response content will be loaded here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load initial data
+    document.addEventListener('DOMContentLoaded', function() {
+        setupEventListeners();
+    });
+
+    function setupEventListeners() {
+        // Enter key to submit query
+        document.getElementById('queryInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                processQuery();
+            }
+        });
+
+        // Focus on input when page loads
+        document.getElementById('queryInput').focus();
+    }
+
+    // Set query from suggestion
+    function setQuery(query) {
+        document.getElementById('queryInput').value = query;
+        document.getElementById('queryInput').focus();
+    }
+
+    // Process query
+    async function processQuery() {
+        const query = document.getElementById('queryInput').value.trim();
+        if (!query) return;
+
+        const responseContainer = document.getElementById('responseContainer');
+        const responseTitle = document.getElementById('responseTitle');
+        const responseType = document.getElementById('responseType');
+        const responseContent = document.getElementById('responseContent');
+
+        // Show loading state
+        responseContainer.style.display = 'block';
+        responseTitle.textContent = 'Processing...';
+        responseType.textContent = 'Loading';
+        responseContent.innerHTML = '<div class="loading"><div class="spinner"></div><div>Analyzing your query...</div></div>';
+
+        try {
+            const response = await fetch(`/api/query?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+
+            // Update response header
+            responseTitle.textContent = 'Response';
+            responseType.textContent = data.type || 'Query';
+
+            // Display response based on type
+            if (data.type === 'error') {
+                displayError(data.response, data.suggestions);
+            } else if (data.type === 'greeting') {
+                displayGreeting(data.response, data.suggestions);
+            } else if (data.type === 'block_data') {
+                displayBlockData(data);
+            } else if (data.type === 'concept_explanation') {
+                displayConceptExplanation(data);
+            } else if (data.type === 'general') {
+                displayGeneralResponse(data);
+            } else {
+                displayGeneralResponse(data);
+            }
+
+        } catch (error) {
+            console.error('Error processing query:', error);
+            displayError(`Error processing query: ${error.message}`, []);
+        }
+    }
+
+    // Display error response
+    function displayError(message, suggestions) {
+        const responseContent = document.getElementById('responseContent');
+        let html = `<div class="error-message">${message}</div>`;
+        
+        if (suggestions && suggestions.length > 0) {
+            html += '<div class="response-suggestions"><strong>Try these instead:</strong><br>';
+            suggestions.forEach(suggestion => {
+                html += `<span class="suggestion-tag" onclick="setQuery('${suggestion}')">${suggestion}</span>`;
+            });
+            html += '</div>';
+        }
+        
+        responseContent.innerHTML = html;
+    }
+
+    // Display greeting response
+    function displayGreeting(message, suggestions) {
+        const responseContent = document.getElementById('responseContent');
+        let html = `<div class="success-message">${message}</div>`;
+        
+        if (suggestions && suggestions.length > 0) {
+            html += '<div class="response-suggestions"><strong>Try asking:</strong><br>';
+            suggestions.forEach(suggestion => {
+                html += `<span class="suggestion-tag" onclick="setQuery('${suggestion}')">${suggestion}</span>`;
+            });
+            html += '</div>';
+        }
+        
+        responseContent.innerHTML = html;
+    }
+
+    // Display block data
+    function displayBlockData(data) {
+        const responseContent = document.getElementById('responseContent');
+        let html = `<div class="success-message">${data.response}</div>`;
+        
+        if (data.data && data.data.length > 0) {
+            html += '<div class="response-data">';
+            html += '<h4>Transaction Details:</h4>';
+            html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+            html += '<tr style="background: #f8f9fa;"><th style="padding: 8px; text-align: left;">Sender</th><th style="padding: 8px; text-align: left;">Receiver</th><th style="padding: 8px; text-align: left;">Amount</th><th style="padding: 8px; text-align: left;">Transaction ID</th></tr>';
+            
+            data.data.forEach(transaction => {
+                html += `<tr style="border-bottom: 1px solid #e1e5e9;">`;
+                html += `<td style="padding: 8px; font-family: monospace;">${transaction.sender.substring(0, 12)}...</td>`;
+                html += `<td style="padding: 8px; font-family: monospace;">${transaction.receiver.substring(0, 12)}...</td>`;
+                html += `<td style="padding: 8px; font-weight: 600; color: #28a745;">$${parseFloat(transaction.amount).toLocaleString()}</td>`;
+                html += `<td style="padding: 8px; font-family: monospace;">${transaction.transaction_id.substring(0, 12)}...</td>`;
+                html += `</tr>`;
+            });
+            
+            html += '</table>';
+            html += '</div>';
+        }
+        
+        if (data.summary) {
+            html += '<div class="concept-explanation">';
+            html += '<h4>Block Summary:</h4>';
+            html += `<p><strong>Transactions:</strong> ${data.summary.transaction_count}</p>`;
+            html += `<p><strong>Total Amount:</strong> $${data.summary.total_amount.toLocaleString()}</p>`;
+            html += `<p><strong>Unique Senders:</strong> ${data.summary.unique_senders}</p>`;
+            html += `<p><strong>Unique Receivers:</strong> ${data.summary.unique_receivers}</p>`;
+            html += '</div>';
+        }
+        
+        responseContent.innerHTML = html;
+    }
+
+    // Display concept explanation
+    function displayConceptExplanation(data) {
+        const responseContent = document.getElementById('responseContent');
+        let html = `<div class="concept-explanation">`;
+        html += `<h3>${data.concept.charAt(0).toUpperCase() + data.concept.slice(1)}</h3>`;
+        html += `<p>${data.description}</p>`;
+        
+        if (data.attributes && data.attributes.length > 0) {
+            html += '<h4>Related Attributes:</h4>';
+            html += '<div class="concept-attributes">';
+            data.attributes.forEach(attr => {
+                html += `<div class="attribute-tag">${attr}</div>`;
+            });
+            html += '</div>';
+        }
+        
+        if (data.examples && data.examples.length > 0) {
+            html += '<div class="examples-section">';
+            html += '<h4>Example Queries:</h4>';
+            data.examples.forEach(example => {
+                html += `<div class="example-item" onclick="setQuery('${example}')">${example}</div>`;
+            });
+            html += '</div>';
+        }
+        
+        html += '</div>';
+        responseContent.innerHTML = html;
+    }
+
+    // Display general response
+    function displayGeneralResponse(data) {
+        const responseContent = document.getElementById('responseContent');
+        let html = `<div class="success-message">${data.response}</div>`;
+        
+        if (data.suggestions && data.suggestions.length > 0) {
+            html += '<div class="response-suggestions"><strong>Try asking:</strong><br>';
+            data.suggestions.forEach(suggestion => {
+                html += `<span class="suggestion-tag" onclick="setQuery('${suggestion}')">${suggestion}</span>`;
+            });
+            html += '</div>';
+        }
+        
+        responseContent.innerHTML = html;
+    }
+</script>
+{% endblock %}

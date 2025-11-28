@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Chain Explorer{% endblock %}
+
+{% block content %}
+<div class="page-title">
+    <i class="fas fa-home"></i> Welcome to Chain Explorer
+</div>
+<div class="page-subtitle">
+    Your comprehensive blockchain data analytics platform
+</div>
+
+<!-- Quick Stats -->
+<div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-cubes"></i></div>
+        <div class="stat-value" id="totalBlocks">-</div>
+        <div class="stat-label">Total Blocks</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-exchange-alt"></i></div>
+        <div class="stat-value" id="totalTransactions">-</div>
+        <div class="stat-label">Total Transactions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-user"></i></div>
+        <div class="stat-value" id="uniqueSenders">-</div>
+        <div class="stat-label">Unique Senders</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
+        <div class="stat-value" id="totalVolume">-</div>
+        <div class="stat-label">Total Volume</div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card">
+    <h3 style="margin-bottom: 20px; text-align: center;">Quick Actions</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <a href="/dashboard" class="btn">
+            <i class="fas fa-tachometer-alt"></i> View Dashboard
+        </a>
+        <a href="/transactions" class="btn">
+            <i class="fas fa-exchange-alt"></i> Browse Transactions
+        </a>
+        <a href="/analytics" class="btn">
+            <i class="fas fa-chart-line"></i> Advanced Analytics
+        </a>
+        <a href="/query" class="btn">
+            <i class="fas fa-search"></i> Ask Questions
+        </a>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="card">
+    <h3 style="margin-bottom: 20px;">Recent Activity</h3>
+    <div class="loading" id="recentLoading">
+        <div class="spinner"></div>
+        <div>Loading recent activity...</div>
+    </div>
+    <div id="recentActivity" style="display: none;">
+        <!-- Recent activity will be loaded here -->
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Load initial data
+    document.addEventListener('DOMContentLoaded', function() {
+        loadStats();
+        loadRecentActivity();
+    });
+
+    // Load statistics
+    async function loadStats() {
+        try {
+            const response = await fetch('/api/stats');
+            const data = await response.json();
+            
+            document.getElementById('totalBlocks').textContent = data.total_blocks.toLocaleString();
+            document.getElementById('totalTransactions').textContent = data.total_transactions.toLocaleString();
+            document.getElementById('uniqueSenders').textContent = data.unique_senders.toLocaleString();
+            document.getElementById('totalVolume').textContent = '$' + data.total_volume.toLocaleString();
+        } catch (error) {
+            console.error('Error loading stats:', error);
+        }
+    }
+
+    // Load recent activity
+    async function loadRecentActivity() {
+        const loading = document.getElementById('recentLoading');
+        const activity = document.getElementById('recentActivity');
+        
+        try {
+            const response = await fetch('/api/transactions?page=1&per_page=5');
+            const data = await response.json();
+            
+            let html = '<div style="display: grid; gap: 10px;">';
+            data.transactions.forEach(transaction => {
+                html += `
+                    <div style="padding: 15px; background: #f8f9fa; border-radius: 10px; border-left: 4px solid #667eea;">
+                        <div style="font-weight: 600; color: #333;">Block ${transaction.index}</div>
+                        <div style="color: #666; font-size: 0.9rem;">
+                            ${transaction.sender.substring(0, 12)}... → ${transaction.receiver.substring(0, 12)}...
+                        </div>
+                        <div style="color: #667eea; font-weight: 600;">
+                            $${parseFloat(transaction.amount).toLocaleString()}
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            
+            activity.innerHTML = html;
+            loading.style.display = 'none';
+            activity.style.display = 'block';
+            
+        } catch (error) {
+            console.error('Error loading recent activity:', error);
+            loading.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}

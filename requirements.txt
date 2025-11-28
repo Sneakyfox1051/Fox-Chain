@@ -1,3 +1,7 @@
 pandas
-streamlit
-Pillow
+flask
+numpy
+requests
+textblob
+gunicorn
+python-dotenv
