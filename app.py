@@ -1,13 +1,18 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for
+from flask import Flask, render_template, jsonify, request
 import pandas as pd
-import json
 import os
-from datetime import datetime
-import numpy as np
 import re
 from textblob import TextBlob
 import warnings
 from dotenv import load_dotenv
+
+# Import RAG system
+try:
+    from rag_system import RAGSystem
+    RAG_AVAILABLE = True
+except ImportError:
+    RAG_AVAILABLE = False
+    print("Warning: RAG system not available. Using fallback NLP processor.")
 
 # Load environment variables from .env file
 load_dotenv()
@@ -53,6 +58,18 @@ def load_blockchain_data():
 # Global variable to store data
 blockchain_data = load_blockchain_data()
 
+# Initialize RAG system if available
+rag_system = None
+if RAG_AVAILABLE and not blockchain_data.empty:
+    try:
+        print("Initializing RAG system...")
+        rag_system = RAGSystem(blockchain_data)
+        print("✓ RAG system initialized successfully")
+    except Exception as e:
+        print(f"Warning: Could not initialize RAG system: {e}")
+        rag_system = None
+
+# Fallback NLP processor (kept for compatibility)
 class AdvancedNLPProcessor:
     def __init__(self, df):
         self.df = df
@@ -276,8 +293,10 @@ class AdvancedNLPProcessor:
             "What is the nonce of block 3?"
         ]
 
-# Initialize NLP processor
-nlp_processor = AdvancedNLPProcessor(blockchain_data)
+# Initialize fallback NLP processor (only if RAG not available)
+nlp_processor = None
+if rag_system is None:
+    nlp_processor = AdvancedNLPProcessor(blockchain_data)
 
 @app.route('/')
 def index():
@@ -405,8 +424,17 @@ def query_data():
         return jsonify({"error": "No query provided"})
     
     try:
-        # Use advanced NLP processing
-        result = nlp_processor.process_query(query)
+        # Use RAG system if available, otherwise fallback to NLP processor
+        if rag_system:
+            result = rag_system.query(query)
+        elif nlp_processor:
+            result = nlp_processor.process_query(query)
+        else:
+            return jsonify({
+                'type': 'error',
+                'response': "Query system not available. Please ensure data is loaded.",
+                'suggestions': []
+            })
         
         # Convert datetime objects to strings for JSON serialization
         if 'data' in result and isinstance(result['data'], list):
@@ -418,10 +446,31 @@ def query_data():
         return jsonify(result)
     
     except Exception as e:
+        suggestions = []
+        if rag_system:
+            suggestions = rag_system._get_suggestions()
+        elif nlp_processor:
+            suggestions = nlp_processor.get_suggestions()
+        
         return jsonify({
             'type': 'error',
             'response': f"Error processing query: {str(e)}",
-            'suggestions': nlp_processor.get_suggestions()
+            'suggestions': suggestions
+        })
+
+@app.route('/api/rag/performance')
+def get_rag_performance():
+    """Get RAG system performance metrics"""
+    if rag_system:
+        stats = rag_system.get_performance_stats()
+        return jsonify(stats)
+    else:
+        return jsonify({
+            'error': 'RAG system not available',
+            'total_queries': 0,
+            'time_reduction': 0,
+            'accuracy': 0,
+            'user_count': 0
         })
 
 @app.route('/api/analytics/transaction-timeline')

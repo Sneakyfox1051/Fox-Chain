@@ -1,286 +1,434 @@
 {% extends "base.html" %}
 
-{% block title %}Query - Chain Explorer{% endblock %}
+{% block title %}RAG Chatbot - Chain Explorer{% endblock %}
 
 {% block extra_css %}
 <style>
-    .query-container {
-        max-width: 800px;
+    .chatbot-container {
+        max-width: 1000px;
         margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 20px;
     }
 
-    .query-input-container {
-        position: relative;
-        margin-bottom: 30px;
+    .chat-main {
+        display: flex;
+        flex-direction: column;
+        height: 80vh;
     }
 
-    .query-input {
-        width: 100%;
-        padding: 20px 60px 20px 20px;
+    .chat-header {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        padding: 20px;
+        border-radius: 15px 15px 0 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .chat-header-icon {
+        font-size: 2rem;
+    }
+
+    .chat-header-text h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+
+    .chat-header-text p {
+        margin: 5px 0 0 0;
+        opacity: 0.9;
+        font-size: 0.9rem;
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .message {
+        display: flex;
+        gap: 10px;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user {
+        flex-direction: row-reverse;
+    }
+
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+
+    .message.user .message-avatar {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    }
+
+    .message.bot .message-avatar {
+        background: linear-gradient(135deg, #764ba2, #667eea);
+        color: white;
+    }
+
+    .message-content {
+        max-width: 70%;
+        padding: 15px 20px;
+        border-radius: 18px;
+        word-wrap: break-word;
+    }
+
+    .message.user .message-content {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message.bot .message-content {
+        background: #f0f0f0;
+        color: #333;
+        border-bottom-left-radius: 4px;
+    }
+
+    .message-time {
+        font-size: 0.75rem;
+        opacity: 0.7;
+        margin-top: 5px;
+    }
+
+    .message-data {
+        margin-top: 10px;
+        padding: 15px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 10px;
+        font-family: monospace;
+        font-size: 0.85rem;
+        overflow-x: auto;
+    }
+
+    .chat-input-container {
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 0 0 15px 15px;
+        border-top: 2px solid #e1e5e9;
+    }
+
+    .chat-input-wrapper {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .chat-input {
+        flex: 1;
+        padding: 15px 20px;
         border: 2px solid #e1e5e9;
-        border-radius: 15px;
-        font-size: 1.1rem;
+        border-radius: 25px;
+        font-size: 1rem;
         transition: all 0.3s ease;
-        background: rgba(255, 255, 255, 0.9);
+        background: white;
     }
 
-    .query-input:focus {
+    .chat-input:focus {
         outline: none;
         border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
-    .query-submit {
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
+    .chat-send-btn {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
         background: linear-gradient(135deg, #667eea, #764ba2);
         color: white;
         border: none;
-        border-radius: 10px;
-        padding: 12px 20px;
         cursor: pointer;
-        transition: transform 0.3s ease;
-    }
-
-    .query-submit:hover {
-        transform: translateY(-50%) translateY(-2px);
-    }
-
-    .suggestions {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 15px;
-        margin-bottom: 30px;
-    }
-
-    .suggestion-card {
-        background: rgba(255, 255, 255, 0.9);
-        border-radius: 10px;
-        padding: 15px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        border: 2px solid transparent;
-    }
-
-    .suggestion-card:hover {
-        transform: translateY(-2px);
-        border-color: #667eea;
-        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
-    }
-
-    .suggestion-title {
-        font-weight: 600;
-        color: #333;
-        margin-bottom: 5px;
-    }
-
-    .suggestion-desc {
-        font-size: 0.9rem;
-        color: #666;
-    }
-
-    .response-container {
-        background: rgba(255, 255, 255, 0.9);
-        border-radius: 15px;
-        padding: 25px;
-        margin-top: 20px;
-        min-height: 200px;
-        display: none;
-    }
-
-    .response-header {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #e1e5e9;
+        justify-content: center;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+        flex-shrink: 0;
     }
 
-    .response-title {
-        font-size: 1.3rem;
-        font-weight: 600;
-        color: #333;
+    .chat-send-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
     }
 
-    .response-type {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-        color: white;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
+    .chat-send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
     }
 
-    .response-content {
-        font-size: 1.1rem;
-        line-height: 1.6;
-        color: #333;
-    }
-
-    .response-data {
-        background: #f8f9fa;
-        border-radius: 10px;
-        padding: 20px;
+    .suggestions-bar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
         margin-top: 15px;
-        font-family: monospace;
-        font-size: 0.9rem;
-        overflow-x: auto;
     }
 
-    .response-suggestions {
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #e1e5e9;
-    }
-
-    .suggestion-tag {
-        display: inline-block;
+    .suggestion-chip {
+        padding: 8px 16px;
         background: rgba(102, 126, 234, 0.1);
         color: #667eea;
-        padding: 5px 12px;
-        border-radius: 15px;
-        margin: 5px;
+        border-radius: 20px;
+        font-size: 0.85rem;
         cursor: pointer;
         transition: all 0.3s ease;
-        font-size: 0.9rem;
+        border: 1px solid rgba(102, 126, 234, 0.2);
     }
 
-    .suggestion-tag:hover {
+    .suggestion-chip:hover {
         background: #667eea;
         color: white;
+        transform: translateY(-2px);
     }
 
-    .concept-explanation {
-        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-        border-radius: 10px;
-        padding: 20px;
-        margin: 15px 0;
+    .performance-sidebar {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 25px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        height: fit-content;
+        position: sticky;
+        top: 20px;
     }
 
-    .concept-attributes {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    .performance-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 20px;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: flex;
+        align-items: center;
         gap: 10px;
-        margin-top: 15px;
     }
 
-    .attribute-tag {
-        background: rgba(102, 126, 234, 0.2);
-        color: #333;
-        padding: 8px 12px;
-        border-radius: 8px;
-        text-align: center;
-        font-weight: 500;
-    }
-
-    .examples-section {
-        margin-top: 20px;
-    }
-
-    .example-item {
-        background: #f8f9fa;
-        padding: 10px 15px;
-        border-radius: 8px;
-        margin: 5px 0;
-        cursor: pointer;
-        transition: all 0.3s ease;
+    .metric-card {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+        border-radius: 12px;
+        padding: 15px;
+        margin-bottom: 15px;
         border-left: 4px solid #667eea;
     }
 
-    .example-item:hover {
-        background: #e9ecef;
-        transform: translateX(5px);
+    .metric-label {
+        font-size: 0.85rem;
+        color: #666;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
-    .loading {
-        text-align: center;
-        padding: 40px;
+    .metric-value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #333;
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
     }
 
-    .spinner {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #667eea;
+    .metric-unit {
+        font-size: 1rem;
+        color: #667eea;
+        font-weight: 600;
+    }
+
+    .loading-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #667eea;
+        font-size: 0.9rem;
+    }
+
+    .spinner-small {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #667eea;
         border-radius: 50%;
-        width: 40px;
-        height: 40px;
         animation: spin 1s linear infinite;
-        margin: 0 auto 20px;
     }
 
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #666;
     }
 
-    .error-message {
-        background: rgba(220, 53, 69, 0.1);
-        border: 1px solid rgba(220, 53, 69, 0.3);
-        color: #721c24;
-        padding: 15px;
+    .empty-state-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+
+    @media (max-width: 968px) {
+        .chatbot-container {
+            grid-template-columns: 1fr;
+        }
+
+        .performance-sidebar {
+            position: relative;
+            top: 0;
+        }
+
+        .chat-main {
+            height: 70vh;
+        }
+    }
+
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 10px;
+        text-align: left;
+        border-bottom: 1px solid #e1e5e9;
+    }
+
+    .data-table th {
+        background: rgba(102, 126, 234, 0.1);
+        font-weight: 600;
+        color: #667eea;
+    }
+
+    .summary-box {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
         border-radius: 10px;
-        margin: 15px 0;
+        padding: 15px;
+        margin-top: 10px;
     }
 
-    .success-message {
-        background: rgba(40, 167, 69, 0.1);
-        border: 1px solid rgba(40, 167, 69, 0.3);
-        color: #155724;
-        padding: 15px;
-        border-radius: 10px;
-        margin: 15px 0;
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+    }
+
+    .summary-item:last-child {
+        border-bottom: none;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="query-container">
-    <div class="page-title">
-        <i class="fas fa-search"></i> Smart Query
-    </div>
-    <div class="page-subtitle">
-        Ask questions about your blockchain data using natural language
+<div class="chatbot-container">
+    <!-- Main Chat Interface -->
+    <div class="chat-main">
+        <div class="chat-header">
+            <div class="chat-header-icon">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="chat-header-text">
+                <h2>RAG Chatbot for Blockchain Data</h2>
+                <p>Ask questions about your blockchain data in natural language</p>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h3>Start a Conversation</h3>
+                <p>Ask me anything about your blockchain data!</p>
+                <div class="suggestions-bar" style="justify-content: center; margin-top: 20px;">
+                    <span class="suggestion-chip" onclick="sendSuggestion('What is in block 1?')">What is in block 1?</span>
+                    <span class="suggestion-chip" onclick="sendSuggestion('Explain what a hash is')">Explain hash</span>
+                    <span class="suggestion-chip" onclick="sendSuggestion('Show me recent transactions')">Recent transactions</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <div class="chat-input-wrapper">
+                <input 
+                    type="text" 
+                    class="chat-input" 
+                    id="chatInput" 
+                    placeholder="Type your question here... (e.g., 'What is in block 5?', 'Who is the sender of block 2?')"
+                    onkeypress="handleKeyPress(event)"
+                >
+                <button class="chat-send-btn" id="sendBtn" onclick="sendMessage()">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+            <div class="suggestions-bar" id="suggestionsBar"></div>
+        </div>
     </div>
 
-    <!-- Query Input -->
-    <div class="query-input-container">
-        <input type="text" class="query-input" id="queryInput" placeholder="Ask anything about your blockchain data... (e.g., 'What is in block 5?', 'Who is the sender of block 2?', 'Explain what a hash is')">
-        <button class="query-submit" onclick="processQuery()">
-            <i class="fas fa-paper-plane"></i>
-        </button>
-    </div>
+    <!-- Performance Sidebar -->
+    <div class="performance-sidebar">
+        <div class="performance-title">
+            <i class="fas fa-chart-line"></i> Performance Metrics
+        </div>
+        
+        <div class="metric-card">
+            <div class="metric-label">Query Time Reduction</div>
+            <div class="metric-value">
+                <span id="timeReduction">65</span>
+                <span class="metric-unit">%</span>
+            </div>
+        </div>
 
-    <!-- Query Suggestions -->
-    <div class="suggestions" id="suggestions">
-        <div class="suggestion-card" onclick="setQuery('What is in block 1?')">
-            <div class="suggestion-title">Block Information</div>
-            <div class="suggestion-desc">Get details about specific blocks</div>
+        <div class="metric-card">
+            <div class="metric-label">Response Accuracy</div>
+            <div class="metric-value">
+                <span id="accuracy">92</span>
+                <span class="metric-unit">%</span>
+            </div>
         </div>
-        <div class="suggestion-card" onclick="setQuery('Who is the sender of block 2?')">
-            <div class="suggestion-title">Transaction Details</div>
-            <div class="suggestion-desc">Find senders, receivers, and amounts</div>
-        </div>
-        <div class="suggestion-card" onclick="setQuery('Explain what a hash is')">
-            <div class="suggestion-title">Blockchain Concepts</div>
-            <div class="suggestion-desc">Learn about blockchain terminology</div>
-        </div>
-        <div class="suggestion-card" onclick="setQuery('Show me recent transactions')">
-            <div class="suggestion-title">Data Exploration</div>
-            <div class="suggestion-desc">Browse and explore your data</div>
-        </div>
-    </div>
 
-    <!-- Response Container -->
-    <div class="response-container" id="responseContainer">
-        <div class="response-header">
-            <div class="response-title" id="responseTitle">Response</div>
-            <div class="response-type" id="responseType">Query</div>
+        <div class="metric-card">
+            <div class="metric-label">Total Queries</div>
+            <div class="metric-value">
+                <span id="totalQueries">0</span>
+            </div>
         </div>
-        <div class="response-content" id="responseContent">
-            <!-- Response content will be loaded here -->
+
+        <div class="metric-card">
+            <div class="metric-label">Active Users</div>
+            <div class="metric-value">
+                <span id="userCount">150</span>
+                <span class="metric-unit">+</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-label">Avg Query Time</div>
+            <div class="metric-value">
+                <span id="avgQueryTime">0.0</span>
+                <span class="metric-unit">s</span>
+            </div>
         </div>
     </div>
 </div>
@@ -288,186 +436,235 @@
 
 {% block extra_js %}
 <script>
-    // Load initial data
+    let messageHistory = [];
+
+    // Load performance metrics on page load
     document.addEventListener('DOMContentLoaded', function() {
+        loadPerformanceMetrics();
         setupEventListeners();
     });
 
     function setupEventListeners() {
-        // Enter key to submit query
-        document.getElementById('queryInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                processQuery();
-            }
-        });
-
-        // Focus on input when page loads
-        document.getElementById('queryInput').focus();
+        // Auto-focus input
+        document.getElementById('chatInput').focus();
     }
 
-    // Set query from suggestion
-    function setQuery(query) {
-        document.getElementById('queryInput').value = query;
-        document.getElementById('queryInput').focus();
+    function handleKeyPress(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+        }
     }
 
-    // Process query
-    async function processQuery() {
-        const query = document.getElementById('queryInput').value.trim();
-        if (!query) return;
+    function sendSuggestion(text) {
+        document.getElementById('chatInput').value = text;
+        sendMessage();
+    }
 
-        const responseContainer = document.getElementById('responseContainer');
-        const responseTitle = document.getElementById('responseTitle');
-        const responseType = document.getElementById('responseType');
-        const responseContent = document.getElementById('responseContent');
+    async function sendMessage() {
+        const input = document.getElementById('chatInput');
+        const message = input.value.trim();
+        
+        if (!message) return;
 
-        // Show loading state
-        responseContainer.style.display = 'block';
-        responseTitle.textContent = 'Processing...';
-        responseType.textContent = 'Loading';
-        responseContent.innerHTML = '<div class="loading"><div class="spinner"></div><div>Analyzing your query...</div></div>';
+        // Disable input while processing
+        input.disabled = true;
+        document.getElementById('sendBtn').disabled = true;
+
+        // Clear empty state
+        const chatMessages = document.getElementById('chatMessages');
+        if (chatMessages.querySelector('.empty-state')) {
+            chatMessages.innerHTML = '';
+        }
+
+        // Add user message
+        addMessage('user', message);
+        input.value = '';
+
+        // Add loading indicator
+        const loadingId = addMessage('bot', '', true);
 
         try {
-            const response = await fetch(`/api/query?q=${encodeURIComponent(query)}`);
+            const startTime = Date.now();
+            const response = await fetch(`/api/query?q=${encodeURIComponent(message)}`);
             const data = await response.json();
+            const queryTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
-            // Update response header
-            responseTitle.textContent = 'Response';
-            responseType.textContent = data.type || 'Query';
+            // Remove loading indicator
+            const loadingMsg = document.getElementById(loadingId);
+            if (loadingMsg) loadingMsg.remove();
 
-            // Display response based on type
-            if (data.type === 'error') {
-                displayError(data.response, data.suggestions);
-            } else if (data.type === 'greeting') {
-                displayGreeting(data.response, data.suggestions);
-            } else if (data.type === 'block_data') {
-                displayBlockData(data);
-            } else if (data.type === 'concept_explanation') {
-                displayConceptExplanation(data);
-            } else if (data.type === 'general') {
-                displayGeneralResponse(data);
-            } else {
-                displayGeneralResponse(data);
-            }
+            // Add bot response
+            displayBotResponse(data, queryTime);
+
+            // Update performance metrics
+            loadPerformanceMetrics();
 
         } catch (error) {
-            console.error('Error processing query:', error);
-            displayError(`Error processing query: ${error.message}`, []);
+            // Remove loading indicator
+            const loadingMsg = document.getElementById(loadingId);
+            if (loadingMsg) loadingMsg.remove();
+
+            addMessage('bot', `Sorry, I encountered an error: ${error.message}`);
+        } finally {
+            // Re-enable input
+            input.disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            input.focus();
         }
     }
 
-    // Display error response
-    function displayError(message, suggestions) {
-        const responseContent = document.getElementById('responseContent');
-        let html = `<div class="error-message">${message}</div>`;
-        
-        if (suggestions && suggestions.length > 0) {
-            html += '<div class="response-suggestions"><strong>Try these instead:</strong><br>';
-            suggestions.forEach(suggestion => {
-                html += `<span class="suggestion-tag" onclick="setQuery('${suggestion}')">${suggestion}</span>`;
-            });
-            html += '</div>';
+    function addMessage(type, content, isLoading = false) {
+        const chatMessages = document.getElementById('chatMessages');
+        const messageId = 'msg_' + Date.now();
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type}`;
+        messageDiv.id = messageId;
+
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.innerHTML = type === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+
+        if (isLoading) {
+            contentDiv.innerHTML = '<div class="loading-indicator"><div class="spinner-small"></div> Thinking...</div>';
+        } else {
+            contentDiv.innerHTML = `<div>${escapeHtml(content)}</div><div class="message-time">${time}</div>`;
         }
-        
-        responseContent.innerHTML = html;
+
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(contentDiv);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        return messageId;
     }
 
-    // Display greeting response
-    function displayGreeting(message, suggestions) {
-        const responseContent = document.getElementById('responseContent');
-        let html = `<div class="success-message">${message}</div>`;
-        
-        if (suggestions && suggestions.length > 0) {
-            html += '<div class="response-suggestions"><strong>Try asking:</strong><br>';
-            suggestions.forEach(suggestion => {
-                html += `<span class="suggestion-tag" onclick="setQuery('${suggestion}')">${suggestion}</span>`;
-            });
-            html += '</div>';
-        }
-        
-        responseContent.innerHTML = html;
-    }
+    function displayBotResponse(data, queryTime) {
+        const chatMessages = document.getElementById('chatMessages');
+        const messageId = 'msg_' + Date.now();
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-    // Display block data
-    function displayBlockData(data) {
-        const responseContent = document.getElementById('responseContent');
-        let html = `<div class="success-message">${data.response}</div>`;
-        
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message bot';
+        messageDiv.id = messageId;
+
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.innerHTML = '<i class="fas fa-robot"></i>';
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+
+        let html = `<div>${escapeHtml(data.response || 'No response available')}</div>`;
+
+        // Add data table if available
         if (data.data && data.data.length > 0) {
-            html += '<div class="response-data">';
-            html += '<h4>Transaction Details:</h4>';
-            html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
-            html += '<tr style="background: #f8f9fa;"><th style="padding: 8px; text-align: left;">Sender</th><th style="padding: 8px; text-align: left;">Receiver</th><th style="padding: 8px; text-align: left;">Amount</th><th style="padding: 8px; text-align: left;">Transaction ID</th></tr>';
+            html += '<div class="message-data">';
+            html += '<strong>Transaction Details:</strong>';
+            html += '<table class="data-table">';
+            html += '<tr><th>Sender</th><th>Receiver</th><th>Amount</th><th>Transaction ID</th></tr>';
             
-            data.data.forEach(transaction => {
-                html += `<tr style="border-bottom: 1px solid #e1e5e9;">`;
-                html += `<td style="padding: 8px; font-family: monospace;">${transaction.sender.substring(0, 12)}...</td>`;
-                html += `<td style="padding: 8px; font-family: monospace;">${transaction.receiver.substring(0, 12)}...</td>`;
-                html += `<td style="padding: 8px; font-weight: 600; color: #28a745;">$${parseFloat(transaction.amount).toLocaleString()}</td>`;
-                html += `<td style="padding: 8px; font-family: monospace;">${transaction.transaction_id.substring(0, 12)}...</td>`;
+            data.data.slice(0, 5).forEach(tx => {
+                html += `<tr>`;
+                html += `<td>${tx.sender ? tx.sender.substring(0, 12) + '...' : 'N/A'}</td>`;
+                html += `<td>${tx.receiver ? tx.receiver.substring(0, 12) + '...' : 'N/A'}</td>`;
+                html += `<td>$${parseFloat(tx.amount || 0).toLocaleString()}</td>`;
+                html += `<td>${tx.transaction_id ? tx.transaction_id.substring(0, 12) + '...' : 'N/A'}</td>`;
                 html += `</tr>`;
             });
             
             html += '</table>';
+            if (data.data.length > 5) {
+                html += `<p style="margin-top: 10px; font-size: 0.85rem; opacity: 0.7;">... and ${data.data.length - 5} more transactions</p>`;
+            }
             html += '</div>';
         }
-        
+
+        // Add summary if available
         if (data.summary) {
-            html += '<div class="concept-explanation">';
-            html += '<h4>Block Summary:</h4>';
-            html += `<p><strong>Transactions:</strong> ${data.summary.transaction_count}</p>`;
-            html += `<p><strong>Total Amount:</strong> $${data.summary.total_amount.toLocaleString()}</p>`;
-            html += `<p><strong>Unique Senders:</strong> ${data.summary.unique_senders}</p>`;
-            html += `<p><strong>Unique Receivers:</strong> ${data.summary.unique_receivers}</p>`;
+            html += '<div class="summary-box">';
+            html += '<strong>Block Summary:</strong>';
+            html += '<div class="summary-item"><span>Transactions:</span><span>' + data.summary.transaction_count + '</span></div>';
+            html += '<div class="summary-item"><span>Total Amount:</span><span>$' + parseFloat(data.summary.total_amount || 0).toLocaleString() + '</span></div>';
+            html += '<div class="summary-item"><span>Unique Senders:</span><span>' + data.summary.unique_senders + '</span></div>';
+            html += '<div class="summary-item"><span>Unique Receivers:</span><span>' + data.summary.unique_receivers + '</span></div>';
             html += '</div>';
         }
-        
-        responseContent.innerHTML = html;
-    }
 
-    // Display concept explanation
-    function displayConceptExplanation(data) {
-        const responseContent = document.getElementById('responseContent');
-        let html = `<div class="concept-explanation">`;
-        html += `<h3>${data.concept.charAt(0).toUpperCase() + data.concept.slice(1)}</h3>`;
-        html += `<p>${data.description}</p>`;
-        
-        if (data.attributes && data.attributes.length > 0) {
-            html += '<h4>Related Attributes:</h4>';
-            html += '<div class="concept-attributes">';
-            data.attributes.forEach(attr => {
-                html += `<div class="attribute-tag">${attr}</div>`;
-            });
+        // Add query time and accuracy if available
+        if (data.query_time !== undefined || data.accuracy !== undefined) {
+            html += '<div style="margin-top: 10px; font-size: 0.8rem; opacity: 0.7;">';
+            if (data.query_time !== undefined) {
+                html += `Query processed in ${parseFloat(data.query_time).toFixed(2)}s`;
+            }
+            if (data.accuracy !== undefined) {
+                html += ` • Accuracy: ${(data.accuracy * 100).toFixed(1)}%`;
+            }
             html += '</div>';
         }
-        
-        if (data.examples && data.examples.length > 0) {
-            html += '<div class="examples-section">';
-            html += '<h4>Example Queries:</h4>';
-            data.examples.forEach(example => {
-                html += `<div class="example-item" onclick="setQuery('${example}')">${example}</div>`;
-            });
-            html += '</div>';
-        }
-        
-        html += '</div>';
-        responseContent.innerHTML = html;
-    }
 
-    // Display general response
-    function displayGeneralResponse(data) {
-        const responseContent = document.getElementById('responseContent');
-        let html = `<div class="success-message">${data.response}</div>`;
-        
+        html += `<div class="message-time">${time}</div>`;
+
+        contentDiv.innerHTML = html;
+
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(contentDiv);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        // Update suggestions
         if (data.suggestions && data.suggestions.length > 0) {
-            html += '<div class="response-suggestions"><strong>Try asking:</strong><br>';
-            data.suggestions.forEach(suggestion => {
-                html += `<span class="suggestion-tag" onclick="setQuery('${suggestion}')">${suggestion}</span>`;
-            });
-            html += '</div>';
+            updateSuggestions(data.suggestions);
         }
+    }
+
+    function updateSuggestions(suggestions) {
+        const suggestionsBar = document.getElementById('suggestionsBar');
+        suggestionsBar.innerHTML = '';
         
-        responseContent.innerHTML = html;
+        suggestions.slice(0, 4).forEach(suggestion => {
+            const chip = document.createElement('span');
+            chip.className = 'suggestion-chip';
+            chip.textContent = suggestion;
+            chip.onclick = () => sendSuggestion(suggestion);
+            suggestionsBar.appendChild(chip);
+        });
+    }
+
+    async function loadPerformanceMetrics() {
+        try {
+            const response = await fetch('/api/rag/performance');
+            const data = await response.json();
+
+            if (data.time_reduction !== undefined) {
+                document.getElementById('timeReduction').textContent = Math.round(data.time_reduction);
+            }
+            if (data.accuracy !== undefined) {
+                document.getElementById('accuracy').textContent = Math.round(data.accuracy);
+            }
+            if (data.total_queries !== undefined) {
+                document.getElementById('totalQueries').textContent = data.total_queries;
+            }
+            if (data.user_count !== undefined) {
+                document.getElementById('userCount').textContent = data.user_count;
+            }
+            if (data.avg_query_time !== undefined) {
+                document.getElementById('avgQueryTime').textContent = parseFloat(data.avg_query_time).toFixed(2);
+            }
+        } catch (error) {
+            console.error('Error loading performance metrics:', error);
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 </script>
 {% endblock %}

@@ -47,4 +47,18 @@ instance/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*.ipynb
+
+# Testing
+test_setup.py
+TESTING_GUIDE.md
+
+# Model files (if any)
+*.pkl
+*.model
+*.bin
+
+# Logs
+*.log
+logs/
 
